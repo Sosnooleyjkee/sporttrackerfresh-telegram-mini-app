@@ -1,0 +1,9 @@
+{
+  "trailingSlash": false,
+  "rewrites": [
+    {
+      "source": "/((?!_expo/|assets/|favicon.ico|metadata.json|.*\\.[^/]+$).*)",
+      "destination": "/index.html"
+    }
+  ]
+}
