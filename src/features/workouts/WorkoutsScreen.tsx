@@ -199,10 +199,27 @@ export function WorkoutsScreen() {
     setCoachDecision("pending");
   };
 
-  const updateExercise = (blockIndex: number, entryIndex: number, updater: (entry: WorkoutExerciseInput) => WorkoutExerciseInput) => {
-    const path = `blocks.${blockIndex}.entries.${entryIndex}` as const;
-    const current = getValues(path);
-    setValue(path, updater(current), { shouldDirty: true, shouldTouch: true });
+  const updateExercise = (
+    blockIndex: number,
+    entryIndex: number,
+    updater: (entry: WorkoutExerciseInput) => WorkoutExerciseInput,
+  ) => {
+    const currentBlocks = getValues("blocks") ?? [];
+    const nextBlocks = currentBlocks.map((block, currentBlockIndex) => {
+      if (currentBlockIndex !== blockIndex) {
+        return block;
+      }
+
+      return {
+        ...block,
+        entries: block.entries.map((entry, currentEntryIndex) =>
+          currentEntryIndex === entryIndex ? updater(entry) : entry,
+        ),
+      };
+    });
+
+    setValue("blocks", nextBlocks, { shouldDirty: true, shouldTouch: true });
+    return nextBlocks;
   };
 
   const updateSetField = (
@@ -300,8 +317,8 @@ export function WorkoutsScreen() {
   };
 
   const completeExercise = (blockIndex: number, entryIndex: number) => {
-    updateExercise(blockIndex, entryIndex, (entry) => markExerciseCompleted(entry));
-    setExpandedExerciseKey(findNextUnfinishedExerciseKey(watchedBlocks ?? [], blockIndex, entryIndex));
+    const nextBlocks = updateExercise(blockIndex, entryIndex, (entry) => markExerciseCompleted(entry));
+    setExpandedExerciseKey(findNextUnfinishedExerciseKey(nextBlocks, blockIndex, entryIndex));
   };
 
   const reopenExercise = (blockIndex: number, entryIndex: number) => {
