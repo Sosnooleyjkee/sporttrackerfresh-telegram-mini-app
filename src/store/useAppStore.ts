@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
 
 import { foodCatalogSeed } from "@/constants/foodCatalog";
 import { getDefaultTemplatesForDirection, getExerciseTemplateById } from "@/constants/workoutTemplates";
@@ -55,6 +56,37 @@ type AppState = {
   addFoodLogEntry: (payload: { foodId: string; grams: number; mealType: FoodLogEntry["mealType"] }) => void;
 };
 
+type PersistedAppState = Pick<
+  AppState,
+  | "questionnaire"
+  | "selectedDirections"
+  | "readinessCheck"
+  | "workoutHistory"
+  | "personalRecords"
+  | "dailyActivities"
+  | "foodLogEntries"
+  | "healthConnections"
+  | "coach"
+  | "client"
+  | "trainingPlan"
+  | "nutritionPlan"
+  | "clientProgress"
+>;
+
+const noopStorage: StateStorage = {
+  getItem: () => null,
+  setItem: () => {},
+  removeItem: () => {},
+};
+
+const appStoreStorage = createJSONStorage<PersistedAppState>(() => {
+  if (typeof globalThis !== "undefined" && "localStorage" in globalThis && globalThis.localStorage) {
+    return globalThis.localStorage;
+  }
+
+  return noopStorage;
+});
+
 const initialActivities: DailyActivity[] = [
   {
     id: "activity_today",
@@ -97,7 +129,9 @@ function buildTemplateBlock(direction: TrainingDirection): WorkoutDirectionBlock
   };
 }
 
-export const useAppStore = create<AppState>((set, get) => ({
+export const useAppStore = create<AppState>()(
+  persist(
+    (set, get) => ({
   isBootstrapped: false,
   questionnaire: defaultQuestionnaire,
   selectedDirections: ["chest"],
@@ -303,7 +337,28 @@ export const useAppStore = create<AppState>((set, get) => ({
         foodLogEntries: [entry, ...state.foodLogEntries],
       };
     }),
-}));
+    }),
+    {
+      name: "sporttrackerfresh-app-store",
+      storage: appStoreStorage,
+      partialize: (state): PersistedAppState => ({
+        questionnaire: state.questionnaire,
+        selectedDirections: state.selectedDirections,
+        readinessCheck: state.readinessCheck,
+        workoutHistory: state.workoutHistory,
+        personalRecords: state.personalRecords,
+        dailyActivities: state.dailyActivities,
+        foodLogEntries: state.foodLogEntries,
+        healthConnections: state.healthConnections,
+        coach: state.coach,
+        client: state.client,
+        trainingPlan: state.trainingPlan,
+        nutritionPlan: state.nutritionPlan,
+        clientProgress: state.clientProgress,
+      }),
+    },
+  ),
+);
 
 export function useTodayNutritionSummary() {
   const entries = useAppStore((state) => state.foodLogEntries);
