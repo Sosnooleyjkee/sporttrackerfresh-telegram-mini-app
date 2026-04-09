@@ -61,6 +61,14 @@ const progressPathLabels: Record<WorkoutProgressPath, string> = {
   recovery: "Восстановление",
 };
 
+const readinessScaleQuestions: Array<{ key: keyof ReadinessCheck; label: string; low: string; high: string }> = [
+  { key: "sleepQuality", label: "Сон", low: "Плохо", high: "Отлично" },
+  { key: "energyLevel", label: "Энергия", low: "Низко", high: "Высоко" },
+  { key: "muscleSoreness", label: "Забитость", low: "Сильная", high: "Низкая" },
+  { key: "stress", label: "Стресс", low: "Высокий", high: "Низкий" },
+  { key: "readinessToPush", label: "Готовность", low: "Лайт", high: "Жму" },
+];
+
 export function WorkoutsScreen() {
   const { width } = useWindowDimensions();
   const selectedDirections = useAppStore((state) => state.selectedDirections);
@@ -146,8 +154,15 @@ export function WorkoutsScreen() {
       return [];
     }
 
-    return getAlternativeTemplates(replacementContext.direction, replacementContext.activeTemplateId);
-  }, [replacementContext]);
+    const selectedTemplateIds =
+      watchedBlocks?.[replacementContext.blockIndex]?.entries.map((entry) => entry.templateId) ?? [];
+
+    return getAlternativeTemplates(
+      replacementContext.direction,
+      replacementContext.activeTemplateId,
+      selectedTemplateIds,
+    );
+  }, [replacementContext, watchedBlocks]);
 
   const aggregateStats = useMemo(() => {
     const currentVolume = draftAnalysis.blockResults.reduce((sum, block) => sum + block.groupVolume, 0);
@@ -424,15 +439,15 @@ export function WorkoutsScreen() {
           </View>
 
           <View style={styles.summaryRow}>
-            <SummaryStat label="Текущий объем" value={formatNumber(aggregateStats.currentVolume)} accent="green" />
+            <SummaryStat label="Объём" value={formatNumber(aggregateStats.currentVolume)} accent="green" />
             <SummaryStat
-              label="Прошлый объем"
+              label="Прошлый"
               value={aggregateStats.previousVolume == null ? "Нет базы" : formatNumber(aggregateStats.previousVolume)}
             />
-            <SummaryStat label="Режим дня" value={draftAnalysis.coachingSnapshot.readiness.label} accent="violet" />
+            <SummaryStat label="Режим" value={draftAnalysis.coachingSnapshot.readiness.label} accent="violet" />
             <SummaryStat
-              label="Цель квеста"
-              value={aggregateStats.questTarget > 0 ? formatNumber(aggregateStats.questTarget) : "Появится позже"}
+              label="Цель +3%"
+              value={aggregateStats.questTarget > 0 ? formatNumber(aggregateStats.questTarget) : "Скоро"}
             />
           </View>
 
@@ -467,7 +482,7 @@ export function WorkoutsScreen() {
             <Text style={styles.readinessModeText}>{buildReadinessProfile(watchedReadiness).label}</Text>
           </View>
 
-          {readinessQuestions.map((question) => (
+          {readinessScaleQuestions.map((question) => (
             <View key={question.key} style={styles.readinessRow}>
               <View style={styles.readinessQuestion}>
                 <Text style={styles.readinessQuestionTitle}>{question.label}</Text>
@@ -524,7 +539,7 @@ export function WorkoutsScreen() {
               </Text>
             </View>
             <View style={styles.coachHighlightCard}>
-              <Text style={styles.coachHighlightLabel}>Set delta</Text>
+              <Text style={styles.coachHighlightLabel}>Сеты</Text>
               <Text style={styles.coachHighlightValue}>
                 {draftAnalysis.coachingSnapshot.recommendedSetDelta > 0
                   ? `+${draftAnalysis.coachingSnapshot.recommendedSetDelta}`
@@ -532,7 +547,7 @@ export function WorkoutsScreen() {
               </Text>
             </View>
             <View style={styles.coachHighlightCard}>
-              <Text style={styles.coachHighlightLabel}>Статус после save</Text>
+              <Text style={styles.coachHighlightLabel}>Статус после сохранения</Text>
               <Text style={styles.coachHighlightValue}>{draftAnalysis.reward.title.replace("Тренировка сохранена — ", "")}</Text>
             </View>
           </View>
@@ -637,18 +652,31 @@ export function WorkoutsScreen() {
                 return (
                   <View key={exerciseKey} style={[styles.exerciseCard, expandedExerciseKey === exerciseKey ? styles.exerciseCardActive : null]}>
                     <View style={styles.exerciseHeader}>
-                      <View style={styles.exerciseHeaderCopy}>
-                        <Text style={styles.exerciseIndex}>{entryIndex + 1}</Text>
-                        <View style={styles.exerciseTitleWrap}>
-                          <Text style={styles.exerciseName}>{entry.name}</Text>
-                          {recommendation?.recommendedWeight ? (
-                            <Text style={styles.exerciseRecommendationText}>
-                              Recommended working load: {recommendation.recommendedWeight} кг
+                      <View style={styles.exerciseHeaderTop}>
+                        <View style={styles.exerciseHeaderCopy}>
+                          <Text style={styles.exerciseIndex}>{entryIndex + 1}</Text>
+                          <View style={styles.exerciseTitleWrap}>
+                            <Text numberOfLines={2} style={styles.exerciseName}>
+                              {entry.name}
                             </Text>
-                          ) : null}
+                          </View>
                         </View>
+                        <Pressable
+                          onPress={() => setActiveTechnique(getExerciseTechnique(entry.templateId, entry.name, block.direction))}
+                          style={({ pressed }) => [styles.exerciseActionPrimary, pressed ? styles.pressed : null]}
+                        >
+                          <Text style={styles.exerciseActionPrimaryText}>Техника</Text>
+                        </Pressable>
                       </View>
-                      <View style={styles.exerciseActions}>
+
+                      <View style={styles.exerciseHeaderBottom}>
+                        <View style={styles.exerciseRecommendationBadge}>
+                          <Text style={styles.exerciseRecommendationLabel}>Рабочий вес</Text>
+                          <Text style={styles.exerciseRecommendationText}>
+                            {recommendation?.recommendedWeight ? `${recommendation.recommendedWeight} кг` : "Подберётся по ходу"}
+                          </Text>
+                        </View>
+
                         <Pressable
                           onPress={() =>
                             setReplacementContext({
@@ -661,12 +689,6 @@ export function WorkoutsScreen() {
                           style={({ pressed }) => [styles.exerciseActionSecondary, pressed ? styles.pressed : null]}
                         >
                           <Text style={styles.exerciseActionSecondaryText}>Заменить</Text>
-                        </Pressable>
-                        <Pressable
-                          onPress={() => setActiveTechnique(getExerciseTechnique(entry.templateId, entry.name, block.direction))}
-                          style={({ pressed }) => [styles.exerciseActionPrimary, pressed ? styles.pressed : null]}
-                        >
-                          <Text style={styles.exerciseActionPrimaryText}>Техника</Text>
                         </Pressable>
                       </View>
                     </View>
@@ -730,7 +752,7 @@ export function WorkoutsScreen() {
 
                     <View style={styles.exerciseControls}>
                       <Pressable onPress={() => addSet(blockIndex, entryIndex)} style={({ pressed }) => [styles.controlChip, pressed ? styles.pressed : null]}>
-                        <Text style={styles.controlChipText}>Add set</Text>
+                        <Text style={styles.controlChipText}>Добавить подход</Text>
                       </Pressable>
                       <Pressable onPress={() => repeatPreviousSet(blockIndex, entryIndex)} style={({ pressed }) => [styles.controlChip, pressed ? styles.pressed : null]}>
                         <Text style={styles.controlChipText}>Повторить прошлый подход</Text>
@@ -757,7 +779,7 @@ export function WorkoutsScreen() {
                       </View>
                       <Pressable onPress={() => (entry.isCompleted ? reopenExercise(blockIndex, entryIndex) : completeExercise(blockIndex, entryIndex))} style={({ pressed }) => [styles.completeButton, pressed ? styles.pressed : null]}>
                         <Text style={styles.completeButtonText}>
-                          {entry.isCompleted ? "Вернуть в работу" : "Complete exercise"}
+                          {entry.isCompleted ? "Вернуть в работу" : "Завершить упражнение"}
                         </Text>
                       </Pressable>
                     </View>
@@ -803,8 +825,13 @@ export function WorkoutsScreen() {
                     <Text style={styles.sectionTitle}>{activeTechnique.title}</Text>
                     <Text style={styles.modalSummary}>{activeTechnique.summary}</Text>
                   </View>
-                  <Pressable onPress={() => setActiveTechnique(null)} style={({ pressed }) => [styles.secondaryAction, pressed ? styles.pressed : null]}>
-                    <Text style={styles.secondaryActionText}>Закрыть</Text>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Закрыть окно техники"
+                    onPress={() => setActiveTechnique(null)}
+                    style={({ pressed }) => [styles.modalCloseButton, pressed ? styles.pressed : null]}
+                  >
+                    <Text style={styles.modalCloseButtonText}>×</Text>
                   </Pressable>
                 </View>
 
@@ -834,9 +861,17 @@ export function WorkoutsScreen() {
           <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setReplacementContext(null)} />
           <View style={styles.sheetCard}>
             <View style={styles.sheetHandle} />
-            <Text style={styles.sectionLabel}>Exercise swap</Text>
+            <Text style={styles.sectionLabel}>Замена упражнения</Text>
             <Text style={styles.sectionTitle}>Выбери аналог</Text>
             <ScrollView style={styles.sheetList} contentContainerStyle={styles.sheetListContent}>
+              {replacementOptions.length === 0 ? (
+                <View style={styles.sheetEmptyState}>
+                  <Text style={styles.sheetEmptyTitle}>Свободных аналогов не осталось</Text>
+                  <Text style={styles.sheetEmptyText}>
+                    В этом блоке уже используются остальные подходящие упражнения. Открой другой блок или оставь текущее движение.
+                  </Text>
+                </View>
+              ) : null}
               {replacementOptions.map((option) => (
                 <Pressable key={option.id} onPress={() => handleReplaceExercise(option.id)} style={({ pressed }) => [styles.sheetOption, pressed ? styles.pressed : null]}>
                   <View style={styles.sheetOptionCopy}>
@@ -944,6 +979,7 @@ const styles = StyleSheet.create({
   summaryRow: {
     flexDirection: "row",
     flexWrap: "wrap",
+    justifyContent: "space-between",
     gap: appTheme.spacing.sm,
   },
   pathBlock: {
@@ -1049,8 +1085,13 @@ const styles = StyleSheet.create({
     borderColor: appTheme.colors.border,
   },
   readinessScaleButtonActive: {
-    backgroundColor: "#192026",
-    borderColor: "rgba(124,140,255,0.22)",
+    backgroundColor: "rgba(124,140,255,0.16)",
+    borderColor: "rgba(124,140,255,0.52)",
+    shadowColor: "#7C8CFF",
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 3,
   },
   readinessScaleText: {
     color: appTheme.colors.textSecondary,
@@ -1058,7 +1099,7 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   readinessScaleTextActive: {
-    color: appTheme.colors.textPrimary,
+    color: "#E8ECFF",
   },
   coachCard: {
     gap: appTheme.spacing.md,
@@ -1303,8 +1344,10 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   exerciseHeader: {
+    gap: appTheme.spacing.sm,
+  },
+  exerciseHeaderTop: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "flex-start",
     gap: appTheme.spacing.sm,
   },
@@ -1313,10 +1356,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: appTheme.spacing.sm,
+    minWidth: 0,
   },
   exerciseTitleWrap: {
     flex: 1,
     gap: 4,
+    minWidth: 0,
   },
   exerciseIndex: {
     width: 30,
@@ -1332,16 +1377,40 @@ const styles = StyleSheet.create({
   },
   exerciseName: {
     color: appTheme.colors.textPrimary,
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: "700",
+    lineHeight: 22,
+    flexShrink: 1,
+  },
+  exerciseHeaderBottom: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: appTheme.spacing.sm,
+    flexWrap: "wrap",
+  },
+  exerciseRecommendationBadge: {
+    flex: 1,
+    minWidth: 170,
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 16,
+    backgroundColor: "#101419",
+    borderWidth: 1,
+    borderColor: appTheme.colors.border,
+  },
+  exerciseRecommendationLabel: {
+    color: appTheme.colors.textMuted,
+    fontSize: 10,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   exerciseRecommendationText: {
-    color: appTheme.colors.textMuted,
-    fontSize: 12,
-  },
-  exerciseActions: {
-    flexDirection: "row",
-    gap: 8,
+    color: appTheme.colors.textSecondary,
+    fontSize: 13,
+    fontWeight: "700",
   },
   exerciseActionSecondary: {
     paddingHorizontal: 12,
@@ -1357,12 +1426,16 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   exerciseActionPrimary: {
+    minWidth: 92,
+    minHeight: 40,
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 16,
-    backgroundColor: "#142419",
+    backgroundColor: "#111A13",
     borderWidth: 1,
-    borderColor: "rgba(34,197,94,0.2)",
+    borderColor: "rgba(34,197,94,0.24)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   exerciseActionPrimaryText: {
     color: appTheme.colors.accent,
@@ -1614,11 +1687,27 @@ const styles = StyleSheet.create({
   },
   modalHeader: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    alignItems: "flex-start",
     gap: appTheme.spacing.md,
   },
   modalHeaderCopy: {
     flex: 1,
+  },
+  modalCloseButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#151A20",
+    borderWidth: 1,
+    borderColor: appTheme.colors.border,
+  },
+  modalCloseButtonText: {
+    color: appTheme.colors.textPrimary,
+    fontSize: 20,
+    fontWeight: "700",
+    lineHeight: 22,
   },
   modalSummary: {
     color: appTheme.colors.textSecondary,
@@ -1634,7 +1723,7 @@ const styles = StyleSheet.create({
   },
   mediaFrame: {
     flex: 1.2,
-    minHeight: 360,
+    minHeight: 420,
     padding: appTheme.spacing.md,
     borderRadius: 28,
     backgroundColor: "#0D1116",
@@ -1738,6 +1827,24 @@ const styles = StyleSheet.create({
   sheetOptionMeta: {
     color: appTheme.colors.textSecondary,
     fontSize: 13,
+  },
+  sheetEmptyState: {
+    gap: 6,
+    padding: appTheme.spacing.md,
+    borderRadius: 22,
+    backgroundColor: appTheme.colors.surfaceRaised,
+    borderWidth: 1,
+    borderColor: appTheme.colors.border,
+  },
+  sheetEmptyTitle: {
+    color: appTheme.colors.textPrimary,
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  sheetEmptyText: {
+    color: appTheme.colors.textSecondary,
+    fontSize: 13,
+    lineHeight: 19,
   },
   sheetOptionAction: {
     color: appTheme.colors.accent,

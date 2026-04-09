@@ -29,6 +29,10 @@ const templateExerciseIds: Record<string, string> = {
   chest_8: "Dumbbell_Flyes",
   chest_9: "Barbell_Incline_Bench_Press_-_Medium_Grip",
   chest_10: "Cable_Crossover",
+  chest_11: "Decline_Barbell_Bench_Press",
+  chest_12: "Leverage_Chest_Press",
+  chest_13: "Cable_Crossover",
+  chest_14: "Push-Ups",
 
   front_delts_1: "Dumbbell_Shoulder_Press",
   front_delts_2: "Arnold_Dumbbell_Press",
@@ -40,6 +44,10 @@ const templateExerciseIds: Record<string, string> = {
   front_delts_8: "Front_Raise_And_Pullover",
   front_delts_9: "Front_Raise_And_Pullover",
   front_delts_10: "Barbell_Shoulder_Press",
+  front_delts_11: "Standing_Military_Press",
+  front_delts_12: "Front_Raise_And_Pullover",
+  front_delts_13: "Front_Raise_And_Pullover",
+  front_delts_14: "Dumbbell_Shoulder_Press",
 
   side_delts_1: "Side_Lateral_Raise",
   side_delts_2: "Cable_Seated_Lateral_Raise",
@@ -51,6 +59,10 @@ const templateExerciseIds: Record<string, string> = {
   side_delts_8: "Side_Lateral_Raise",
   side_delts_9: "Cable_Seated_Lateral_Raise",
   side_delts_10: "Smith_Machine_Upright_Row",
+  side_delts_11: "One-Arm_Incline_Lateral_Raise",
+  side_delts_12: "Side_Lateral_Raise",
+  side_delts_13: "Cable_Seated_Lateral_Raise",
+  side_delts_14: "Seated_Side_Lateral_Raise",
 
   rear_delts_1: "Reverse_Flyes",
   rear_delts_2: "Reverse_Flyes",
@@ -62,6 +74,10 @@ const templateExerciseIds: Record<string, string> = {
   rear_delts_8: "Face_Pull",
   rear_delts_9: "Reverse_Flyes",
   rear_delts_10: "Reverse_Flyes",
+  rear_delts_11: "Face_Pull",
+  rear_delts_12: "Reverse_Flyes",
+  rear_delts_13: "Dumbbell_Lying_Rear_Lateral_Raise",
+  rear_delts_14: "Face_Pull",
 
   back_1: "Wide-Grip_Lat_Pulldown",
   back_2: "Bent_Over_Barbell_Row",
@@ -73,6 +89,10 @@ const templateExerciseIds: Record<string, string> = {
   back_8: "Seated_Cable_Rows",
   back_9: "Close-Grip_Front_Lat_Pulldown",
   back_10: "Bent_Over_Barbell_Row",
+  back_11: "Rack_Pulls",
+  back_12: "Straight-Arm_Pulldown",
+  back_13: "Pendlay_Row",
+  back_14: "Pullups",
 
   biceps_1: "Barbell_Curl",
   biceps_2: "Hammer_Curls",
@@ -84,6 +104,10 @@ const templateExerciseIds: Record<string, string> = {
   biceps_8: "Reverse_Barbell_Curl",
   biceps_9: "Incline_Dumbbell_Curl",
   biceps_10: "Spider_Curl",
+  biceps_11: "Cable_Curls",
+  biceps_12: "Hammer_Curls",
+  biceps_13: "EZ-Bar_Curl",
+  biceps_14: "Preacher_Curl",
 
   triceps_1: "EZ-Bar_Skullcrusher",
   triceps_2: "Triceps_Pushdown",
@@ -95,6 +119,10 @@ const templateExerciseIds: Record<string, string> = {
   triceps_8: "Standing_Low-Pulley_One-Arm_Triceps_Extension",
   triceps_9: "Standing_One-Arm_Dumbbell_Triceps_Extension",
   triceps_10: "JM_Press",
+  triceps_11: "Lying_Close-Grip_Barbell_Triceps_Extention_Behind_The_Head",
+  triceps_12: "Triceps_Pushdown_-_Rope_Attachment",
+  triceps_13: "Close-Grip_Barbell_Bench_Press",
+  triceps_14: "Bench_Dips",
 
   legs_1: "Barbell_Squat",
   legs_2: "Leg_Press",
@@ -106,6 +134,10 @@ const templateExerciseIds: Record<string, string> = {
   legs_8: "Romanian_Deadlift",
   legs_9: "Leg_Extensions",
   legs_10: "Barbell_Hip_Thrust",
+  legs_11: "Bulgarian_Split_Squat",
+  legs_12: "Hack_Squat",
+  legs_13: "Seated_Leg_Curl",
+  legs_14: "Seated_Calf_Raise",
 };
 
 const fallbackExerciseIdByDirection: Record<TrainingDirection, string> = {

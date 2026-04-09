@@ -22,8 +22,12 @@ export function SummaryStat({
         accent === "violet" ? styles.summaryStatViolet : null,
       ]}
     >
-      <Text style={styles.summaryStatLabel}>{label}</Text>
-      <Text style={styles.summaryStatValue}>{value}</Text>
+      <Text numberOfLines={1} ellipsizeMode="tail" style={styles.summaryStatLabel}>
+        {label}
+      </Text>
+      <Text numberOfLines={1} ellipsizeMode="tail" style={styles.summaryStatValue}>
+        {value}
+      </Text>
     </View>
   );
 }
@@ -50,15 +54,18 @@ export function CompactInputCard({
 
 const styles = StyleSheet.create({
   summaryStat: {
-    flex: 1,
-    minWidth: 0,
+    flexGrow: 1,
+    flexBasis: "48.2%",
+    maxWidth: "48.2%",
+    minWidth: 138,
     borderRadius: 22,
-    paddingHorizontal: appTheme.spacing.md,
-    paddingVertical: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     borderWidth: 1,
     borderColor: appTheme.colors.border,
     backgroundColor: appTheme.colors.surface,
     gap: 6,
+    minHeight: 82,
   },
   summaryStatGreen: {
     borderColor: "rgba(34,197,94,0.18)",
@@ -69,16 +76,17 @@ const styles = StyleSheet.create({
     backgroundColor: "#141722",
   },
   summaryStatLabel: {
-    color: appTheme.colors.textMuted,
-    fontSize: 11,
+    color: appTheme.colors.textSecondary,
+    fontSize: 10,
     fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   summaryStatValue: {
     color: appTheme.colors.textPrimary,
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "800",
+    lineHeight: 22,
   },
   inputCard: {
     flex: 1,
