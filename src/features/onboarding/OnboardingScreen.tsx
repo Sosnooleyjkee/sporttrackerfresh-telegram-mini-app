@@ -10,10 +10,9 @@ import { defaultQuestionnaire, onboardingSchema, type OnboardingFormValues } fro
 import { useAppStore } from "@/store/useAppStore";
 import { appTheme } from "@/theme/appTheme";
 
-const goalOptions = [
-  { value: "cut", label: "Сушка" },
-  { value: "maintain", label: "Поддержание" },
-  { value: "muscle_gain", label: "Набор" },
+const genderOptions = [
+  { value: "male", label: "Мужской" },
+  { value: "female", label: "Женский" },
 ] as const;
 
 const levelOptions = [
@@ -27,10 +26,10 @@ export function OnboardingScreen() {
   const { control, handleSubmit } = useForm<OnboardingFormValues>({
     resolver: zodResolver(onboardingSchema),
     defaultValues: {
+      gender: defaultQuestionnaire.gender,
       age: defaultQuestionnaire.age,
       heightCm: defaultQuestionnaire.heightCm,
       weightKg: defaultQuestionnaire.weightKg,
-      goal: defaultQuestionnaire.goal,
       level: defaultQuestionnaire.level,
       dailyStepsTarget: defaultQuestionnaire.dailyStepsTarget,
       weeklyTrainingTarget: defaultQuestionnaire.weeklyTrainingTarget,
@@ -40,6 +39,7 @@ export function OnboardingScreen() {
   const onSubmit = handleSubmit((values) => {
     completeQuestionnaire({
       ...values,
+      goal: defaultQuestionnaire.goal,
       isCompleted: true,
     });
   });
@@ -50,25 +50,19 @@ export function OnboardingScreen() {
         <Text style={styles.eyebrow}>Обязательная анкета</Text>
         <Text style={styles.title}>Сначала фиксируем базу пользователя</Text>
         <Text style={styles.subtitle}>
-          Без анкеты приложение не откроет тренировки, активность и питание.
+          Анкета заполняется один раз. Без неё приложение не откроет тренировки, активность и питание.
         </Text>
       </View>
 
       <SectionCard>
-        <FormNumberInput control={control} name="age" label="Возраст" placeholder="Например, 28" />
-        <FormNumberInput control={control} name="heightCm" label="Рост, см" placeholder="180" />
-        <FormNumberInput control={control} name="weightKg" label="Вес, кг" placeholder="82" />
-        <FormNumberInput control={control} name="dailyStepsTarget" label="Шаги в день" placeholder="10000" />
-        <FormNumberInput control={control} name="weeklyTrainingTarget" label="Тренировок в неделю" placeholder="4" />
-
         <Controller
           control={control}
-          name="goal"
+          name="gender"
           render={({ field: { value, onChange } }) => (
             <View style={styles.group}>
-              <Text style={styles.groupLabel}>Цель</Text>
+              <Text style={styles.groupLabel}>Пол</Text>
               <View style={styles.optionRow}>
-                {goalOptions.map((option) => (
+                {genderOptions.map((option) => (
                   <Pressable
                     key={option.value}
                     onPress={() => onChange(option.value)}
@@ -83,6 +77,12 @@ export function OnboardingScreen() {
             </View>
           )}
         />
+
+        <FormNumberInput control={control} name="age" label="Возраст" placeholder="Например, 28" />
+        <FormNumberInput control={control} name="heightCm" label="Рост, см" placeholder="180" />
+        <FormNumberInput control={control} name="weightKg" label="Вес, кг" placeholder="82" />
+        <FormNumberInput control={control} name="dailyStepsTarget" label="Шаги в день" placeholder="10000" />
+        <FormNumberInput control={control} name="weeklyTrainingTarget" label="Тренировок в неделю" placeholder="4" />
 
         <Controller
           control={control}

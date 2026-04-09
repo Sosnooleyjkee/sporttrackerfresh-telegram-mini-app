@@ -16,7 +16,6 @@ import { WorkoutHistoryRepository } from "@/repositories/workouts/WorkoutHistory
 import {
   getMuscleAnalytics,
   getQuestAndStreakSummary,
-  getReadinessAnalytics,
   getRecentlyBrokenPRs,
   getRecentSessionSummaries,
   getStrengthChangeSummary,
@@ -91,11 +90,9 @@ export function HistoryScreen() {
     () => getQuestAndStreakSummary(workoutHistory, questionnaire.weeklyTrainingTarget),
     [questionnaire.weeklyTrainingTarget, workoutHistory],
   );
-  const readinessAnalytics = useMemo(() => getReadinessAnalytics(workoutHistory, 14), [workoutHistory]);
   const muscleAnalytics = useMemo(() => getMuscleAnalytics(workoutHistory), [workoutHistory]);
 
   const isWide = width >= 920;
-  const latestSession = recentSessions[0];
   const totalQuestHits = workoutHistory.filter((session) => session.activePaths.includes("weekly_quest")).length;
 
   return (
@@ -108,12 +105,6 @@ export function HistoryScreen() {
               <Text style={styles.heroTitle}>Прогресс, к которому хочется возвращаться</Text>
               <Text style={styles.heroDescription}>
                 История тренировок, готовность и пути прогресса собраны в один премиальный экран, чтобы пользователь открывал приложение не только в зале, но и ради ощущения роста.
-              </Text>
-            </View>
-            <View style={styles.heroBadge}>
-              <Text style={styles.heroBadgeLabel}>Последний статус</Text>
-              <Text style={styles.heroBadgeValue}>
-                {latestSession ? sessionStatusLabels[latestSession.status] : "Нет сессий"}
               </Text>
             </View>
           </View>
@@ -135,7 +126,7 @@ export function HistoryScreen() {
             />
             <HistoryHeroStat
               label="Средняя готовность"
-              value={`${readinessAnalytics.averageReadiness}%`}
+              value={`${streaks.completedWeeks}`}
               note="Средний уровень готовности за последние тренировки."
             />
             <HistoryHeroStat
@@ -266,42 +257,9 @@ export function HistoryScreen() {
         </SurfaceSection>
 
         <SurfaceSection
-          eyebrow="Тренд готовности"
-          title="Готовность и паттерны усталости"
-          description="Тренд готовности, количество PR-дней, дней восстановления и быстрый вывод о влиянии сна."
-        >
-          <View style={[styles.dualColumn, isWide ? styles.dualColumnWide : null]}>
-            <View style={styles.cardSurface}>
-              <Text style={styles.cardTitle}>Линия готовности</Text>
-              <TimelineBar points={readinessAnalytics.points.map((point) => point.readinessScore)} />
-              <View style={styles.timelineLabels}>
-                {readinessAnalytics.points.map((point) => (
-                  <Text key={point.performedAt} style={styles.timelineLabel}>
-                    {formatDateLabel(point.performedAt)}
-                  </Text>
-                ))}
-              </View>
-            </View>
-
-            <View style={styles.cardSurface}>
-              <Text style={styles.cardTitle}>Инсайты по готовности</Text>
-              <View style={styles.metricGrid}>
-                <InsightCard title="PR-дни" value={`${readinessAnalytics.bestPrDays}`} note="Сколько сессий в тренде завершились силовым или объемным PR." />
-                <InsightCard title="Дни восстановления" value={`${readinessAnalytics.recoveryDays}`} note="Сколько раз тренировочный день был отнесён к восстановлению." />
-                <InsightCard title="Дни усталости" value={`${readinessAnalytics.fatigueDays}`} note="Сессии с готовностью ниже 50%." />
-              </View>
-              <View style={styles.infoStrip}>
-                <Text style={styles.infoStripTitle}>Связь со сном</Text>
-                <Text style={styles.infoStripText}>{readinessAnalytics.sleepCorrelationHint}</Text>
-              </View>
-            </View>
-          </View>
-        </SurfaceSection>
-
-        <SurfaceSection
           eyebrow="Аналитика мышц"
-          title="Картина нагрузки по мышечным блокам"
-          description="Карточки в стиле heatmap для ключевых мышечных зон: объем, частота, окно стагнации и плотность PR-путей."
+          title="Нагрузка по мышечным блокам"
+          description="Короткая сводка по объёму, частоте и плотности прогресса для ключевых мышечных зон."
         >
           <View style={[styles.metricGrid, isWide ? styles.metricGridWide : null]}>
             {muscleAnalytics.map((item) => (

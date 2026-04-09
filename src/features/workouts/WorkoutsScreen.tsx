@@ -443,15 +443,10 @@ export function WorkoutsScreen() {
           <View style={styles.heroTop}>
             <View style={styles.heroCopy}>
               <Text style={styles.eyebrow}>Сегодня</Text>
-              <Text style={styles.title}>Адаптивный коуч по тренировкам</Text>
+              <Text style={styles.title}>Тренируйся системно</Text>
               <Text style={styles.subtitle}>
-                Сохраняй каждую сессию, получай умную оценку дня и тренируйся в режиме силы, объема,
-                поддержки или восстановления без потери структуры.
+                Фиксируй подходы, держи структуру по мышечным блокам и собирай историю прогресса без лишнего визуального шума.
               </Text>
-            </View>
-            <View style={styles.readinessBadge}>
-              <Text style={styles.readinessBadgeLabel}>Готовность</Text>
-              <Text style={styles.readinessBadgeValue}>{draftAnalysis.coachingSnapshot.readiness.score}%</Text>
             </View>
           </View>
 
@@ -468,128 +463,6 @@ export function WorkoutsScreen() {
             />
           </View>
 
-          <View style={styles.pathBlock}>
-            <View style={styles.pathHeader}>
-              <Text style={styles.sectionLabel}>Пути прогресса</Text>
-              <Text style={styles.pathMeta}>
-                {aggregateStats.completedExercises} из {aggregateStats.totalExercises} упражнений завершено
-              </Text>
-            </View>
-            <View style={styles.pathRow}>
-              {(Object.keys(progressPathLabels) as WorkoutProgressPath[]).map((path) => {
-                const active = draftAnalysis.activePaths.includes(path);
-                return (
-                  <View key={path} style={[styles.pathPill, active ? styles.pathPillActive : null]}>
-                    <Text style={[styles.pathPillText, active ? styles.pathPillTextActive : null]}>
-                      {progressPathLabels[path]}
-                    </Text>
-                  </View>
-                );
-              })}
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.readinessCard}>
-          <View style={styles.readinessHeader}>
-            <View>
-              <Text style={styles.sectionLabel}>Готовность на сегодня</Text>
-              <Text style={styles.sectionTitle}>Быстрый чек перед залом</Text>
-            </View>
-            <Text style={styles.readinessModeText}>{buildReadinessProfile(watchedReadiness).label}</Text>
-          </View>
-
-          {readinessScaleQuestions.map((question) => (
-            <View key={question.key} style={styles.readinessRow}>
-              <View style={styles.readinessQuestion}>
-                <Text style={styles.readinessQuestionTitle}>{question.label}</Text>
-                <Text style={styles.readinessQuestionMeta}>
-                  {question.low} → {question.high}
-                </Text>
-              </View>
-              <View style={styles.readinessScale}>
-                {[1, 2, 3, 4, 5].map((value) => {
-                  const active = watchedReadiness[question.key] === value;
-                  return (
-                    <Pressable
-                      key={value}
-                      onPress={() => setReadinessValue(question.key, value)}
-                      style={({ pressed }) => [
-                        styles.readinessScaleButton,
-                        active ? styles.readinessScaleButtonActive : null,
-                        pressed ? styles.pressed : null,
-                      ]}
-                    >
-                      <Text style={[styles.readinessScaleText, active ? styles.readinessScaleTextActive : null]}>
-                        {value}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </View>
-          ))}
-        </View>
-
-        <View style={styles.coachCard}>
-          <View style={styles.coachHeader}>
-            <View style={styles.coachHeaderCopy}>
-              <Text style={styles.sectionLabel}>Coach engine</Text>
-              <Text style={styles.sectionTitle}>Умная рекомендация на сегодня</Text>
-            </View>
-            <View style={styles.modeBadge}>
-              <Text style={styles.modeBadgeText}>{draftAnalysis.coachingSnapshot.readiness.label}</Text>
-            </View>
-          </View>
-
-          <Text style={styles.coachLead}>
-            Готовность {draftAnalysis.coachingSnapshot.readiness.score}% • рекомендуем
-            {" "}
-            {Math.round(draftAnalysis.coachingSnapshot.readiness.loadMultiplier * 100)}% от последних рабочих весов.
-          </Text>
-
-          <View style={styles.coachHighlights}>
-            <View style={styles.coachHighlightCard}>
-              <Text style={styles.coachHighlightLabel}>Нагрузка</Text>
-              <Text style={styles.coachHighlightValue}>
-                {Math.round(draftAnalysis.coachingSnapshot.readiness.loadMultiplier * 100)}%
-              </Text>
-            </View>
-            <View style={styles.coachHighlightCard}>
-              <Text style={styles.coachHighlightLabel}>Сеты</Text>
-              <Text style={styles.coachHighlightValue}>
-                {draftAnalysis.coachingSnapshot.recommendedSetDelta > 0
-                  ? `+${draftAnalysis.coachingSnapshot.recommendedSetDelta}`
-                  : draftAnalysis.coachingSnapshot.recommendedSetDelta}
-              </Text>
-            </View>
-            <View style={styles.coachHighlightCard}>
-              <Text style={styles.coachHighlightLabel}>Статус после сохранения</Text>
-              <Text style={styles.coachHighlightValue}>{draftAnalysis.reward.title.replace("Тренировка сохранена — ", "")}</Text>
-            </View>
-          </View>
-
-          {draftAnalysis.coachingSnapshot.exerciseRecommendations
-            .filter((item) => item.substituteName)
-            .slice(0, 2)
-            .map((item) => (
-              <View key={item.exerciseName} style={styles.substitutionRow}>
-                <Text style={styles.substitutionText}>
-                  {item.exerciseName} → {item.substituteName}
-                </Text>
-              </View>
-            ))}
-
-          <View style={styles.coachActions}>
-            <Pressable onPress={applyCoachingPlan} style={({ pressed }) => [styles.primaryAction, pressed ? styles.pressed : null]}>
-              <Text style={styles.primaryActionText}>
-                {coachDecision === "applied" ? "Рекомендации применены" : "Применить рекомендацию"}
-              </Text>
-            </Pressable>
-            <Pressable onPress={() => setCoachDecision("kept")} style={({ pressed }) => [styles.secondaryAction, pressed ? styles.pressed : null]}>
-              <Text style={styles.secondaryActionText}>Оставить исходный план</Text>
-            </Pressable>
-          </View>
         </View>
 
         <View style={styles.segmentedWrap}>
@@ -687,13 +560,6 @@ export function WorkoutsScreen() {
                       </View>
 
                       <View style={styles.exerciseHeaderBottom}>
-                        <View style={styles.exerciseRecommendationBadge}>
-                          <Text style={styles.exerciseRecommendationLabel}>Рабочий вес</Text>
-                          <Text style={styles.exerciseRecommendationText}>
-                            {recommendation?.recommendedWeight ? `${recommendation.recommendedWeight} кг` : "Подберётся по ходу"}
-                          </Text>
-                        </View>
-
                         <Pressable
                           onPress={() =>
                             setReplacementContext({
