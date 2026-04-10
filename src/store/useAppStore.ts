@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
+import { persist, type PersistStorage, type StorageValue } from "zustand/middleware";
 
 import { foodCatalogSeed } from "@/constants/foodCatalog";
 import { getDefaultTemplatesForDirection, getExerciseTemplateById } from "@/constants/workoutTemplates";
@@ -73,19 +73,62 @@ type PersistedAppState = Pick<
   | "clientProgress"
 >;
 
-const noopStorage: StateStorage = {
+type RawStorageLike = {
+  getItem: (key: string) => string | null;
+  setItem: (key: string, value: string) => void;
+  removeItem: (key: string) => void;
+};
+
+const noopStorage: RawStorageLike = {
   getItem: () => null,
   setItem: () => {},
   removeItem: () => {},
 };
 
-const appStoreStorage = createJSONStorage<PersistedAppState>(() => {
-  if (typeof globalThis !== "undefined" && "localStorage" in globalThis && globalThis.localStorage) {
-    return globalThis.localStorage;
+function resolveSafeStorage(): RawStorageLike {
+  try {
+    if (typeof globalThis !== "undefined" && "localStorage" in globalThis && globalThis.localStorage) {
+      const storage = globalThis.localStorage;
+      const probeKey = "__sporttrackerfresh_probe__";
+      storage.setItem(probeKey, "1");
+      storage.removeItem(probeKey);
+      return storage;
+    }
+  } catch {
+    return noopStorage;
   }
 
   return noopStorage;
-});
+}
+
+const appStoreStorage: PersistStorage<PersistedAppState> = {
+  getItem: (name) => {
+    try {
+      const raw = resolveSafeStorage().getItem(name);
+      if (!raw) {
+        return null;
+      }
+
+      return JSON.parse(raw) as StorageValue<PersistedAppState>;
+    } catch {
+      return null;
+    }
+  },
+  setItem: (name, value) => {
+    try {
+      resolveSafeStorage().setItem(name, JSON.stringify(value));
+    } catch {
+      // ignore storage failures in restrictive webviews
+    }
+  },
+  removeItem: (name) => {
+    try {
+      resolveSafeStorage().removeItem(name);
+    } catch {
+      // ignore storage failures in restrictive webviews
+    }
+  },
+};
 
 const initialActivities: DailyActivity[] = [
   {
@@ -340,6 +383,7 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: "sporttrackerfresh-app-store",
+      version: 1,
       storage: appStoreStorage,
       partialize: (state): PersistedAppState => ({
         questionnaire: state.questionnaire,
