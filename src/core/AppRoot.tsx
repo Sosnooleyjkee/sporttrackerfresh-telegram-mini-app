@@ -1,6 +1,7 @@
 import { NavigationContainer, DarkTheme } from "@react-navigation/native";
 
 import { AppBootstrap } from "@/core/AppBootstrap";
+import { AppErrorBoundary } from "@/core/AppErrorBoundary";
 import { RootNavigator } from "@/navigation/RootNavigator";
 import { appTheme } from "@/theme/appTheme";
 
@@ -19,10 +20,12 @@ const navigationTheme = {
 
 export function AppRoot() {
   return (
-    <AppBootstrap>
-      <NavigationContainer theme={navigationTheme}>
-        <RootNavigator />
-      </NavigationContainer>
-    </AppBootstrap>
+    <AppErrorBoundary>
+      <AppBootstrap>
+        <NavigationContainer theme={navigationTheme}>
+          <RootNavigator />
+        </NavigationContainer>
+      </AppBootstrap>
+    </AppErrorBoundary>
   );
 }

@@ -9,14 +9,15 @@ import type { FoodLogEntry } from "@/domain/nutrition";
 import { defaultQuestionnaire, type UserQuestionnaire } from "@/domain/onboarding";
 import { defaultTelegramSession, type TelegramSession } from "@/domain/telegram";
 import type { Coach, Client, ClientProgress, NutritionPlan, TrainingPlan } from "@/domain/whitelabel";
-import type {
-  ReadinessCheck,
-  PersonalRecord,
-  TrainingDirection,
-  WorkoutDirectionBlockInput,
-  WorkoutExerciseInput,
-  WorkoutSaveResult,
-  WorkoutSession,
+import {
+  defaultReadinessCheck,
+  type ReadinessCheck,
+  type PersonalRecord,
+  type TrainingDirection,
+  type WorkoutDirectionBlockInput,
+  type WorkoutExerciseInput,
+  type WorkoutSaveResult,
+  type WorkoutSession,
 } from "@/domain/workout";
 import { calculateMacrosForGrams, generateCutMenu, sumNutrition } from "@/services/nutrition/nutritionEngine";
 import { buildInitialSetEntries, buildWorkoutResult } from "@/services/workouts/workoutEngine";
@@ -72,6 +73,8 @@ type PersistedAppState = Pick<
   | "nutritionPlan"
   | "clientProgress"
 >;
+
+export const APP_STORE_STORAGE_KEY = "sporttrackerfresh-app-store";
 
 type RawStorageLike = {
   getItem: (key: string) => string | null;
@@ -158,6 +161,84 @@ const initialHealthConnections: HealthConnection[] = [
   { provider: "google_fit", status: "planned", lastSyncAt: null },
 ];
 
+const defaultCoach: Coach = {
+  id: "coach_default",
+  name: "Default Coach",
+  brandName: "SportTracker Studio",
+};
+
+const defaultClient: Client = {
+  id: "client_default",
+  coachId: "coach_default",
+  fullName: "Primary User",
+  goal: "cut",
+};
+
+const defaultTrainingPlan: TrainingPlan = {
+  id: "training_plan_default",
+  clientId: "client_default",
+  title: "MVP Strength Split",
+  focus: "Hypertrophy + progression gate",
+  isActive: true,
+};
+
+const defaultNutritionPlan: NutritionPlan = {
+  id: "nutrition_plan_default",
+  clientId: "client_default",
+  title: "Cut Plan",
+  targetKcal: 2200,
+  targetProtein: 180,
+  targetFat: 70,
+  targetCarbs: 190,
+};
+
+function sanitizePersistedState(value: unknown): PersistedAppState {
+  const state = value && typeof value === "object" ? (value as Partial<PersistedAppState>) : {};
+
+  return {
+    questionnaire: {
+      ...defaultQuestionnaire,
+      ...(state.questionnaire ?? {}),
+      gender: state.questionnaire?.gender === "female" ? "female" : "male",
+      goal: state.questionnaire?.goal ?? defaultQuestionnaire.goal,
+      isCompleted: Boolean(state.questionnaire?.isCompleted),
+    },
+    selectedDirections:
+      Array.isArray(state.selectedDirections) && state.selectedDirections.length > 0
+        ? state.selectedDirections
+        : ["chest"],
+    readinessCheck: {
+      ...defaultReadinessCheck,
+      ...(state.readinessCheck ?? {}),
+    },
+    workoutHistory: Array.isArray(state.workoutHistory) ? state.workoutHistory : [],
+    personalRecords: Array.isArray(state.personalRecords) ? state.personalRecords : [],
+    dailyActivities: Array.isArray(state.dailyActivities) && state.dailyActivities.length > 0 ? state.dailyActivities : initialActivities,
+    foodLogEntries: Array.isArray(state.foodLogEntries) ? state.foodLogEntries : [],
+    healthConnections:
+      Array.isArray(state.healthConnections) && state.healthConnections.length > 0
+        ? state.healthConnections
+        : initialHealthConnections,
+    coach: {
+      ...defaultCoach,
+      ...(state.coach ?? {}),
+    },
+    client: {
+      ...defaultClient,
+      ...(state.client ?? {}),
+    },
+    trainingPlan: {
+      ...defaultTrainingPlan,
+      ...(state.trainingPlan ?? {}),
+    },
+    nutritionPlan: {
+      ...defaultNutritionPlan,
+      ...(state.nutritionPlan ?? {}),
+    },
+    clientProgress: Array.isArray(state.clientProgress) ? state.clientProgress : [],
+  };
+}
+
 function buildTemplateBlock(direction: TrainingDirection): WorkoutDirectionBlockInput {
   return {
     direction,
@@ -190,33 +271,10 @@ export const useAppStore = create<AppState>()(
   dailyActivities: initialActivities,
   foodLogEntries: [],
   healthConnections: initialHealthConnections,
-  coach: {
-    id: "coach_default",
-    name: "Default Coach",
-    brandName: "SportTracker Studio",
-  },
-  client: {
-    id: "client_default",
-    coachId: "coach_default",
-    fullName: "Primary User",
-    goal: "cut",
-  },
-  trainingPlan: {
-    id: "training_plan_default",
-    clientId: "client_default",
-    title: "MVP Strength Split",
-    focus: "Hypertrophy + progression gate",
-    isActive: true,
-  },
-  nutritionPlan: {
-    id: "nutrition_plan_default",
-    clientId: "client_default",
-    title: "Cut Plan",
-    targetKcal: 2200,
-    targetProtein: 180,
-    targetFat: 70,
-    targetCarbs: 190,
-  },
+  coach: defaultCoach,
+  client: defaultClient,
+  trainingPlan: defaultTrainingPlan,
+  nutritionPlan: defaultNutritionPlan,
   clientProgress: [],
   telegramSession: defaultTelegramSession,
   finishBootstrap: () => set({ isBootstrapped: true }),
@@ -382,9 +440,13 @@ export const useAppStore = create<AppState>()(
     }),
     }),
     {
-      name: "sporttrackerfresh-app-store",
-      version: 1,
+      name: APP_STORE_STORAGE_KEY,
+      version: 2,
       storage: appStoreStorage,
+      merge: (persistedState, currentState) => ({
+        ...currentState,
+        ...sanitizePersistedState(persistedState),
+      }),
       partialize: (state): PersistedAppState => ({
         questionnaire: state.questionnaire,
         selectedDirections: state.selectedDirections,
