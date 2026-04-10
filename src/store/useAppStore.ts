@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import { persist, type PersistStorage, type StorageValue } from "zustand/middleware";
 
 import { foodCatalogSeed } from "@/constants/foodCatalog";
 import { getDefaultTemplatesForDirection, getExerciseTemplateById } from "@/constants/workoutTemplates";
@@ -11,8 +10,8 @@ import { defaultTelegramSession, type TelegramSession } from "@/domain/telegram"
 import type { Coach, Client, ClientProgress, NutritionPlan, TrainingPlan } from "@/domain/whitelabel";
 import {
   defaultReadinessCheck,
-  type ReadinessCheck,
   type PersonalRecord,
+  type ReadinessCheck,
   type TrainingDirection,
   type WorkoutDirectionBlockInput,
   type WorkoutExerciseInput,
@@ -74,7 +73,7 @@ type PersistedAppState = Pick<
   | "clientProgress"
 >;
 
-export const APP_STORE_STORAGE_KEY = "sporttrackerfresh-app-store-v2";
+export const APP_STORE_STORAGE_KEY = "sporttrackerfresh-app-store-v3";
 
 type RawStorageLike = {
   getItem: (key: string) => string | null;
@@ -103,35 +102,6 @@ function resolveSafeStorage(): RawStorageLike {
 
   return noopStorage;
 }
-
-const appStoreStorage: PersistStorage<PersistedAppState> = {
-  getItem: (name) => {
-    try {
-      const raw = resolveSafeStorage().getItem(name);
-      if (!raw) {
-        return null;
-      }
-
-      return JSON.parse(raw) as StorageValue<PersistedAppState>;
-    } catch {
-      return null;
-    }
-  },
-  setItem: (name, value) => {
-    try {
-      resolveSafeStorage().setItem(name, JSON.stringify(value));
-    } catch {
-      // ignore storage failures in restrictive webviews
-    }
-  },
-  removeItem: (name) => {
-    try {
-      resolveSafeStorage().removeItem(name);
-    } catch {
-      // ignore storage failures in restrictive webviews
-    }
-  },
-};
 
 const initialActivities: DailyActivity[] = [
   {
@@ -239,6 +209,45 @@ function sanitizePersistedState(value: unknown): PersistedAppState {
   };
 }
 
+function loadPersistedState(): PersistedAppState {
+  try {
+    const raw = resolveSafeStorage().getItem(APP_STORE_STORAGE_KEY);
+    if (!raw) {
+      return sanitizePersistedState(null);
+    }
+
+    return sanitizePersistedState(JSON.parse(raw));
+  } catch {
+    return sanitizePersistedState(null);
+  }
+}
+
+function pickPersistedState(state: AppState): PersistedAppState {
+  return {
+    questionnaire: state.questionnaire,
+    selectedDirections: state.selectedDirections,
+    readinessCheck: state.readinessCheck,
+    workoutHistory: state.workoutHistory,
+    personalRecords: state.personalRecords,
+    dailyActivities: state.dailyActivities,
+    foodLogEntries: state.foodLogEntries,
+    healthConnections: state.healthConnections,
+    coach: state.coach,
+    client: state.client,
+    trainingPlan: state.trainingPlan,
+    nutritionPlan: state.nutritionPlan,
+    clientProgress: state.clientProgress,
+  };
+}
+
+function savePersistedState(state: AppState) {
+  try {
+    resolveSafeStorage().setItem(APP_STORE_STORAGE_KEY, JSON.stringify(pickPersistedState(state)));
+  } catch {
+    // ignore storage failures in restrictive webviews
+  }
+}
+
 function buildTemplateBlock(direction: TrainingDirection): WorkoutDirectionBlockInput {
   return {
     direction,
@@ -253,218 +262,205 @@ function buildTemplateBlock(direction: TrainingDirection): WorkoutDirectionBlock
   };
 }
 
-export const useAppStore = create<AppState>()(
-  persist(
-    (set, get) => ({
-  isBootstrapped: false,
-  questionnaire: defaultQuestionnaire,
-  selectedDirections: ["chest"],
-  readinessCheck: {
-    sleepQuality: 3,
-    energyLevel: 3,
-    muscleSoreness: 3,
-    stress: 3,
-    readinessToPush: 3,
-  },
-  workoutHistory: [],
-  personalRecords: [],
-  dailyActivities: initialActivities,
-  foodLogEntries: [],
-  healthConnections: initialHealthConnections,
-  coach: defaultCoach,
-  client: defaultClient,
-  trainingPlan: defaultTrainingPlan,
-  nutritionPlan: defaultNutritionPlan,
-  clientProgress: [],
-  telegramSession: defaultTelegramSession,
-  finishBootstrap: () => set({ isBootstrapped: true }),
-  setTelegramSession: (payload) => set({ telegramSession: payload }),
-  completeQuestionnaire: (payload) => {
-    const normalized = { ...payload, isCompleted: true };
-    const cutMenu = generateCutMenu(normalized);
+const persistedState = loadPersistedState();
 
-    set((state) => ({
-      questionnaire: normalized,
-      nutritionPlan: {
-        ...state.nutritionPlan,
-        targetKcal: cutMenu.totalKcal,
-        targetProtein: Math.round(normalized.weightKg * 2.1),
-        targetFat: Math.round(normalized.weightKg * 0.8),
-        targetCarbs: Math.round(
-          (cutMenu.totalKcal -
-            Math.round(normalized.weightKg * 2.1) * 4 -
-            Math.round(normalized.weightKg * 0.8) * 9) /
-            4,
-        ),
-      },
-      client: {
-        ...state.client,
-        goal: normalized.goal,
-      },
-    }));
-  },
-  setReadinessCheck: (payload) => set({ readinessCheck: payload }),
-  toggleDirection: (direction) =>
+export const useAppStore = create<AppState>((set, get) => {
+  const persistPartial = (partial: Partial<AppState>) => {
     set((state) => {
-      const exists = state.selectedDirections.includes(direction);
-      const selectedDirections = exists
-        ? state.selectedDirections.filter((item) => item !== direction)
-        : [...state.selectedDirections, direction];
-
-      return {
-        selectedDirections: selectedDirections.length > 0 ? selectedDirections : state.selectedDirections,
-      };
-    }),
-  setDirections: (directions) => set({ selectedDirections: directions }),
-  getTemplateBlocksForDirections: (directions) => directions.map((direction) => buildTemplateBlock(direction)),
-  saveWorkout: ({ directions, performedAt, readinessCheck, blocks }) => {
-    const result = buildWorkoutResult({
-      directions,
-      performedAt,
-      readinessCheck,
-      blocks,
-      history: get().workoutHistory,
-      existingRecords: get().personalRecords,
-      templateNameResolver: (templateId) => getExerciseTemplateById(templateId)?.name ?? null,
+      const nextState = { ...state, ...partial };
+      savePersistedState(nextState);
+      return partial;
     });
+  };
 
-    set((state) => ({
-      workoutHistory: [result.session, ...state.workoutHistory],
-      personalRecords: result.updatedRecords,
-      readinessCheck,
-      clientProgress: [
-        {
-          id: createId("progress"),
-          clientId: state.client.id,
-          recordedAt: performedAt,
-          weightKg: state.questionnaire.weightKg,
-          chestCm: null,
-          waistCm: null,
-          thighCm: null,
+  const persistProducer = (producer: (state: AppState) => Partial<AppState> | AppState) => {
+    set((state) => {
+      const patch = producer(state);
+      const nextState = { ...state, ...patch };
+      savePersistedState(nextState);
+      return patch;
+    });
+  };
+
+  return {
+    isBootstrapped: false,
+    questionnaire: persistedState.questionnaire,
+    selectedDirections: persistedState.selectedDirections,
+    readinessCheck: persistedState.readinessCheck,
+    workoutHistory: persistedState.workoutHistory,
+    personalRecords: persistedState.personalRecords,
+    dailyActivities: persistedState.dailyActivities,
+    foodLogEntries: persistedState.foodLogEntries,
+    healthConnections: persistedState.healthConnections,
+    coach: persistedState.coach,
+    client: persistedState.client,
+    trainingPlan: persistedState.trainingPlan,
+    nutritionPlan: persistedState.nutritionPlan,
+    clientProgress: persistedState.clientProgress,
+    telegramSession: defaultTelegramSession,
+    finishBootstrap: () => set({ isBootstrapped: true }),
+    setTelegramSession: (payload) => set({ telegramSession: payload }),
+    completeQuestionnaire: (payload) => {
+      const normalized = { ...payload, isCompleted: true };
+      const cutMenu = generateCutMenu(normalized);
+
+      persistProducer((state) => ({
+        questionnaire: normalized,
+        nutritionPlan: {
+          ...state.nutritionPlan,
+          targetKcal: cutMenu.totalKcal,
+          targetProtein: Math.round(normalized.weightKg * 2.1),
+          targetFat: Math.round(normalized.weightKg * 0.8),
+          targetCarbs: Math.round(
+            (cutMenu.totalKcal -
+              Math.round(normalized.weightKg * 2.1) * 4 -
+              Math.round(normalized.weightKg * 0.8) * 9) /
+              4,
+          ),
         },
-        ...state.clientProgress,
-      ],
-    }));
-
-    return result;
-  },
-  upsertDailyActivity: (payload) =>
-    set((state) => {
-      const rest = state.dailyActivities.filter((item) => item.date !== payload.date);
-      return { dailyActivities: [payload, ...rest] };
-    }),
-  logActivityMinutes: ({ type, minutes, steps = 0 }) =>
-    set((state) => {
-      const current = state.dailyActivities.find((item) => item.date === todayIsoDate()) ?? state.dailyActivities[0];
-      if (!current) {
-        return state;
-      }
-
-      const next: DailyActivity = {
-        ...current,
-        steps: current.steps + steps,
-        activeMinutes: current.activeMinutes + minutes,
-      };
-
-      switch (type) {
-        case "walking":
-          next.walkingMinutes += minutes;
-          break;
-        case "running":
-          next.runningMinutes += minutes;
-          break;
-        case "cycling":
-          next.cyclingMinutes += minutes;
-          break;
-        case "swimming":
-          next.swimmingMinutes += minutes;
-          break;
-        case "strength":
-          next.strengthMinutes += minutes;
-          break;
-        case "hiit":
-          next.hiitMinutes += minutes;
-          break;
-        case "mobility":
-          next.mobilityMinutes += minutes;
-          break;
-        case "yoga":
-          next.yogaMinutes += minutes;
-          break;
-        case "stairs":
-          next.stairsMinutes += minutes;
-          break;
-        case "boxing":
-          next.boxingMinutes += minutes;
-          break;
-        case "team_sport":
-          next.teamSportMinutes += minutes;
-          break;
-        case "hiking":
-          next.hikingMinutes += minutes;
-          break;
-        case "elliptical":
-          next.ellipticalMinutes += minutes;
-          break;
-        case "other":
-          next.otherMinutes += minutes;
-          break;
-      }
-
-      const rest = state.dailyActivities.filter((item) => item.date !== current.date);
-      return {
-        dailyActivities: [next, ...rest],
-      };
-    }),
-  addFoodLogEntry: ({ foodId, grams, mealType }) =>
-    set((state) => {
-      const food = foodCatalogSeed.find((item) => item.id === foodId);
-      if (!food) {
-        return state;
-      }
-
-      const macros = calculateMacrosForGrams(food, grams);
-      const entry: FoodLogEntry = {
-        id: createId("foodlog"),
-        foodId,
-        foodName: food.name,
-        grams,
-        mealType,
-        consumedAt: nowIsoString(),
-        ...macros,
-      };
-
-      return {
-        foodLogEntries: [entry, ...state.foodLogEntries],
-      };
-    }),
-    }),
-    {
-      name: APP_STORE_STORAGE_KEY,
-      version: 2,
-      storage: appStoreStorage,
-      merge: (persistedState, currentState) => ({
-        ...currentState,
-        ...sanitizePersistedState(persistedState),
-      }),
-      partialize: (state): PersistedAppState => ({
-        questionnaire: state.questionnaire,
-        selectedDirections: state.selectedDirections,
-        readinessCheck: state.readinessCheck,
-        workoutHistory: state.workoutHistory,
-        personalRecords: state.personalRecords,
-        dailyActivities: state.dailyActivities,
-        foodLogEntries: state.foodLogEntries,
-        healthConnections: state.healthConnections,
-        coach: state.coach,
-        client: state.client,
-        trainingPlan: state.trainingPlan,
-        nutritionPlan: state.nutritionPlan,
-        clientProgress: state.clientProgress,
-      }),
+        client: {
+          ...state.client,
+          goal: normalized.goal,
+        },
+      }));
     },
-  ),
-);
+    setReadinessCheck: (payload) => persistPartial({ readinessCheck: payload }),
+    toggleDirection: (direction) =>
+      persistProducer((state) => {
+        const exists = state.selectedDirections.includes(direction);
+        const selectedDirections = exists
+          ? state.selectedDirections.filter((item) => item !== direction)
+          : [...state.selectedDirections, direction];
+
+        return {
+          selectedDirections: selectedDirections.length > 0 ? selectedDirections : state.selectedDirections,
+        };
+      }),
+    setDirections: (directions) => persistPartial({ selectedDirections: directions }),
+    getTemplateBlocksForDirections: (directions) => directions.map((direction) => buildTemplateBlock(direction)),
+    saveWorkout: ({ directions, performedAt, readinessCheck, blocks }) => {
+      const result = buildWorkoutResult({
+        directions,
+        performedAt,
+        readinessCheck,
+        blocks,
+        history: get().workoutHistory,
+        existingRecords: get().personalRecords,
+        templateNameResolver: (templateId) => getExerciseTemplateById(templateId)?.name ?? null,
+      });
+
+      persistProducer((state) => ({
+        workoutHistory: [result.session, ...state.workoutHistory],
+        personalRecords: result.updatedRecords,
+        readinessCheck,
+        clientProgress: [
+          {
+            id: createId("progress"),
+            clientId: state.client.id,
+            recordedAt: performedAt,
+            weightKg: state.questionnaire.weightKg,
+            chestCm: null,
+            waistCm: null,
+            thighCm: null,
+          },
+          ...state.clientProgress,
+        ],
+      }));
+
+      return result;
+    },
+    upsertDailyActivity: (payload) =>
+      persistProducer((state) => {
+        const rest = state.dailyActivities.filter((item) => item.date !== payload.date);
+        return { dailyActivities: [payload, ...rest] };
+      }),
+    logActivityMinutes: ({ type, minutes, steps = 0 }) =>
+      persistProducer((state) => {
+        const current = state.dailyActivities.find((item) => item.date === todayIsoDate()) ?? state.dailyActivities[0];
+        if (!current) {
+          return {};
+        }
+
+        const next: DailyActivity = {
+          ...current,
+          steps: current.steps + steps,
+          activeMinutes: current.activeMinutes + minutes,
+        };
+
+        switch (type) {
+          case "walking":
+            next.walkingMinutes += minutes;
+            break;
+          case "running":
+            next.runningMinutes += minutes;
+            break;
+          case "cycling":
+            next.cyclingMinutes += minutes;
+            break;
+          case "swimming":
+            next.swimmingMinutes += minutes;
+            break;
+          case "strength":
+            next.strengthMinutes += minutes;
+            break;
+          case "hiit":
+            next.hiitMinutes += minutes;
+            break;
+          case "mobility":
+            next.mobilityMinutes += minutes;
+            break;
+          case "yoga":
+            next.yogaMinutes += minutes;
+            break;
+          case "stairs":
+            next.stairsMinutes += minutes;
+            break;
+          case "boxing":
+            next.boxingMinutes += minutes;
+            break;
+          case "team_sport":
+            next.teamSportMinutes += minutes;
+            break;
+          case "hiking":
+            next.hikingMinutes += minutes;
+            break;
+          case "elliptical":
+            next.ellipticalMinutes += minutes;
+            break;
+          case "other":
+            next.otherMinutes += minutes;
+            break;
+        }
+
+        const rest = state.dailyActivities.filter((item) => item.date !== current.date);
+        return {
+          dailyActivities: [next, ...rest],
+        };
+      }),
+    addFoodLogEntry: ({ foodId, grams, mealType }) =>
+      persistProducer((state) => {
+        const food = foodCatalogSeed.find((item) => item.id === foodId);
+        if (!food) {
+          return {};
+        }
+
+        const macros = calculateMacrosForGrams(food, grams);
+        const entry: FoodLogEntry = {
+          id: createId("foodlog"),
+          foodId,
+          foodName: food.name,
+          grams,
+          mealType,
+          consumedAt: nowIsoString(),
+          ...macros,
+        };
+
+        return {
+          foodLogEntries: [entry, ...state.foodLogEntries],
+        };
+      }),
+  };
+});
 
 export function useTodayNutritionSummary() {
   const entries = useAppStore((state) => state.foodLogEntries);

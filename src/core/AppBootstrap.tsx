@@ -18,8 +18,10 @@ function clearLegacyWebCache() {
     const legacyKeys = [
       "sporttrackerfresh-app-store",
       "sporttrackerfresh-app-store-v1",
+      "sporttrackerfresh-app-store-v2",
       "persist:sporttrackerfresh-app-store",
       "persist:sporttrackerfresh-app-store-v1",
+      "persist:sporttrackerfresh-app-store-v2",
     ];
 
     legacyKeys.forEach((key) => {
@@ -90,7 +92,7 @@ export function AppBootstrap({ children }: PropsWithChildren) {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color={appTheme.colors.accent} />
-        <Text style={styles.text}>Подготавливаем локальное хранилище, Telegram WebView и seed-данные...</Text>
+        <Text style={styles.text}>Подготавливаем локальное хранилище, Telegram WebView и стартовые данные...</Text>
       </View>
     );
   }
