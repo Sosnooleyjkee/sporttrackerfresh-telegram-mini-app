@@ -74,7 +74,7 @@ type PersistedAppState = Pick<
   | "clientProgress"
 >;
 
-export const APP_STORE_STORAGE_KEY = "sporttrackerfresh-app-store";
+export const APP_STORE_STORAGE_KEY = "sporttrackerfresh-app-store-v2";
 
 type RawStorageLike = {
   getItem: (key: string) => string | null;
